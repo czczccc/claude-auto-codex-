@@ -6,6 +6,7 @@ import { GitHubClient } from "./github.js";
 import { createLogger } from "./logger.js";
 import { Orchestrator } from "./orchestrator.js";
 import { PlannerAdapter } from "./planner.js";
+import { GitHubPoller } from "./poller.js";
 import { RepositoryRegistry } from "./repository-config.js";
 import { createServer } from "./server.js";
 import { WorkspaceManager } from "./workspace.js";
@@ -28,10 +29,15 @@ async function main() {
     logger.warn({ recoveredRuns }, "Marked interrupted runs as failed during startup");
   }
   const app = createServer(config, store, github, repositoryRegistry, orchestrator, logger);
+  const poller = new GitHubPoller(config, store, github, repositoryRegistry, orchestrator, logger);
 
   app.listen(config.PORT, () => {
-    logger.info({ port: config.PORT }, "Server listening");
+    logger.info({ port: config.PORT, ingestMode: config.INGEST_MODE }, "Server listening");
   });
+
+  if (config.INGEST_MODE === "poll") {
+    poller.start();
+  }
 }
 
 main().catch((error) => {

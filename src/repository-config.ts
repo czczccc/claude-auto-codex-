@@ -42,6 +42,10 @@ export class RepositoryRegistry {
     return this.repositories.has(`${repoOwner}/${repoName}`);
   }
 
+  list(): ResolvedRepositoryConfig[] {
+    return Array.from(this.repositories.values());
+  }
+
   private resolveRepository(config: AppConfig, repo: RepositoryConfig): ResolvedRepositoryConfig {
     return {
       owner: repo.owner,

@@ -1,6 +1,11 @@
 import { Octokit } from "@octokit/rest";
 import type { AppConfig } from "./config.js";
-import type { GitHubIssuePayload, GitHubCommentPayload } from "./types.js";
+import type {
+  GitHubCommentPayload,
+  GitHubIssueCommentEvent,
+  GitHubIssuePayload,
+  GitHubIssueSnapshot
+} from "./types.js";
 
 export class GitHubClient {
   private readonly octokit: Octokit;
@@ -10,7 +15,18 @@ export class GitHubClient {
   }
 
   static normalizeIssue(payload: Record<string, unknown>): GitHubIssuePayload {
-    const issue = payload.issue as Record<string, unknown>;
+    return GitHubClient.normalizeIssueRecord(payload.issue as Record<string, unknown>);
+  }
+
+  static normalizeComment(payload: Record<string, unknown>): GitHubCommentPayload {
+    const comment = payload.comment as Record<string, unknown>;
+    return {
+      body: String(comment.body ?? ""),
+      userLogin: String((comment.user as { login?: unknown } | undefined)?.login ?? "")
+    };
+  }
+
+  static normalizeIssueRecord(issue: Record<string, unknown>): GitHubIssueSnapshot {
     const labels = Array.isArray(issue.labels) ? issue.labels : [];
 
     return {
@@ -20,15 +36,9 @@ export class GitHubClient {
       body: String(issue.body ?? ""),
       htmlUrl: String(issue.html_url ?? ""),
       labels: labels.map((label) => ({ name: String((label as { name?: unknown }).name ?? "") })),
-      userLogin: String((issue.user as { login?: unknown } | undefined)?.login ?? "")
-    };
-  }
-
-  static normalizeComment(payload: Record<string, unknown>): GitHubCommentPayload {
-    const comment = payload.comment as Record<string, unknown>;
-    return {
-      body: String(comment.body ?? ""),
-      userLogin: String((comment.user as { login?: unknown } | undefined)?.login ?? "")
+      userLogin: String((issue.user as { login?: unknown } | undefined)?.login ?? ""),
+      updatedAt: String(issue.updated_at ?? ""),
+      createdAt: String(issue.created_at ?? "")
     };
   }
 
@@ -120,5 +130,61 @@ export class GitHubClient {
       number: response.data.number,
       htmlUrl: response.data.html_url
     };
+  }
+
+  async listOpenIssuesSince(
+    repoOwner: string,
+    repoName: string,
+    since: string,
+    perPage: number
+  ): Promise<GitHubIssueSnapshot[]> {
+    const response = await this.octokit.issues.listForRepo({
+      owner: repoOwner,
+      repo: repoName,
+      state: "open",
+      sort: "updated",
+      direction: "asc",
+      since,
+      per_page: perPage
+    });
+
+    return response.data
+      .filter((item) => !("pull_request" in item))
+      .map((issue) => GitHubClient.normalizeIssueRecord(issue as unknown as Record<string, unknown>));
+  }
+
+  async getIssue(repoOwner: string, repoName: string, issueNumber: number): Promise<GitHubIssueSnapshot> {
+    const response = await this.octokit.issues.get({
+      owner: repoOwner,
+      repo: repoName,
+      issue_number: issueNumber
+    });
+
+    return GitHubClient.normalizeIssueRecord(response.data as unknown as Record<string, unknown>);
+  }
+
+  async listIssueCommentsSince(
+    repoOwner: string,
+    repoName: string,
+    since: string,
+    perPage: number
+  ): Promise<GitHubIssueCommentEvent[]> {
+    const response = await this.octokit.issues.listCommentsForRepo({
+      owner: repoOwner,
+      repo: repoName,
+      since,
+      per_page: perPage,
+      direction: "asc",
+      sort: "updated"
+    });
+
+    return response.data.map((comment) => ({
+      id: comment.id,
+      issueNumber: Number(comment.issue_url.split("/").pop() ?? 0),
+      body: comment.body ?? "",
+      userLogin: comment.user?.login ?? "",
+      createdAt: comment.created_at ?? "",
+      updatedAt: comment.updated_at ?? ""
+    }));
   }
 }

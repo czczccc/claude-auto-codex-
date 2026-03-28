@@ -42,6 +42,20 @@ export interface GitHubIssuePayload {
   userLogin: string;
 }
 
+export interface GitHubIssueSnapshot extends GitHubIssuePayload {
+  updatedAt: string;
+  createdAt: string;
+}
+
+export interface GitHubIssueCommentEvent {
+  id: number;
+  issueNumber: number;
+  body: string;
+  userLogin: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface IssueRecord {
   repoOwner: string;
   repoName: string;

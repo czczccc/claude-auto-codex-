@@ -34,6 +34,11 @@ export function createServer(
   });
 
   app.post("/webhooks/github", async (request, response) => {
+    if (!config.GITHUB_APP_WEBHOOK_SECRET) {
+      response.status(503).json({ ok: false, error: "webhook mode not configured" });
+      return;
+    }
+
     const deliveryId = request.header("x-github-delivery");
     const signature = request.header("x-hub-signature-256");
     const eventName = request.header("x-github-event");

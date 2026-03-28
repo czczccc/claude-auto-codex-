@@ -60,7 +60,136 @@ export class StateStore {
         delivery_id TEXT PRIMARY KEY,
         received_at TEXT NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS repo_poll_state (
+        repo_owner TEXT NOT NULL,
+        repo_name TEXT NOT NULL,
+        issue_cursor TEXT,
+        comment_cursor TEXT,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (repo_owner, repo_name)
+      );
+
+      CREATE TABLE IF NOT EXISTS processed_issue_comments (
+        comment_id INTEGER PRIMARY KEY,
+        repo_owner TEXT NOT NULL,
+        repo_name TEXT NOT NULL,
+        issue_number INTEGER NOT NULL,
+        processed_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS issue_observations (
+        repo_owner TEXT NOT NULL,
+        repo_name TEXT NOT NULL,
+        issue_number INTEGER NOT NULL,
+        has_auto_label INTEGER NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (repo_owner, repo_name, issue_number)
+      );
     `);
+  }
+
+  getRepoPollState(
+    repoOwner: string,
+    repoName: string
+  ): { issueCursor: string | null; commentCursor: string | null } {
+    const row = this.db
+      .prepare(`
+        SELECT
+          issue_cursor AS issueCursor,
+          comment_cursor AS commentCursor
+        FROM repo_poll_state
+        WHERE repo_owner = ? AND repo_name = ?
+      `)
+      .get(repoOwner, repoName) as { issueCursor: string | null; commentCursor: string | null } | undefined;
+
+    return row ?? { issueCursor: null, commentCursor: null };
+  }
+
+  setRepoPollState(
+    repoOwner: string,
+    repoName: string,
+    patch: { issueCursor?: string | null; commentCursor?: string | null }
+  ): void {
+    const existing = this.getRepoPollState(repoOwner, repoName);
+    const now = new Date().toISOString();
+
+    this.db
+      .prepare(`
+        INSERT INTO repo_poll_state (repo_owner, repo_name, issue_cursor, comment_cursor, updated_at)
+        VALUES (@repoOwner, @repoName, @issueCursor, @commentCursor, @updatedAt)
+        ON CONFLICT(repo_owner, repo_name) DO UPDATE SET
+          issue_cursor = excluded.issue_cursor,
+          comment_cursor = excluded.comment_cursor,
+          updated_at = excluded.updated_at
+      `)
+      .run({
+        repoOwner,
+        repoName,
+        issueCursor: patch.issueCursor ?? existing.issueCursor,
+        commentCursor: patch.commentCursor ?? existing.commentCursor,
+        updatedAt: now
+      });
+  }
+
+  hasProcessedIssueComment(commentId: number): boolean {
+    const row = this.db
+      .prepare("SELECT comment_id FROM processed_issue_comments WHERE comment_id = ?")
+      .get(commentId);
+    return Boolean(row);
+  }
+
+  recordProcessedIssueComment(
+    commentId: number,
+    repoOwner: string,
+    repoName: string,
+    issueNumber: number
+  ): void {
+    this.db
+      .prepare(`
+        INSERT OR IGNORE INTO processed_issue_comments (
+          comment_id, repo_owner, repo_name, issue_number, processed_at
+        ) VALUES (?, ?, ?, ?, ?)
+      `)
+      .run(commentId, repoOwner, repoName, issueNumber, new Date().toISOString());
+  }
+
+  getIssueObservation(
+    repoOwner: string,
+    repoName: string,
+    issueNumber: number
+  ): { hasAutoLabel: boolean } | null {
+    const row = this.db
+      .prepare(`
+        SELECT has_auto_label AS hasAutoLabel
+        FROM issue_observations
+        WHERE repo_owner = ? AND repo_name = ? AND issue_number = ?
+      `)
+      .get(repoOwner, repoName, issueNumber) as { hasAutoLabel: number } | undefined;
+
+    if (!row) {
+      return null;
+    }
+
+    return { hasAutoLabel: Boolean(row.hasAutoLabel) };
+  }
+
+  setIssueObservation(
+    repoOwner: string,
+    repoName: string,
+    issueNumber: number,
+    hasAutoLabel: boolean
+  ): void {
+    this.db
+      .prepare(`
+        INSERT INTO issue_observations (
+          repo_owner, repo_name, issue_number, has_auto_label, updated_at
+        ) VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(repo_owner, repo_name, issue_number) DO UPDATE SET
+          has_auto_label = excluded.has_auto_label,
+          updated_at = excluded.updated_at
+      `)
+      .run(repoOwner, repoName, issueNumber, hasAutoLabel ? 1 : 0, new Date().toISOString());
   }
 
   hasDelivery(deliveryId: string): boolean {
