@@ -1,0 +1,12 @@
+{
+  "repositories": [
+    {
+      "owner": "your-org",
+      "repo": "your-repo",
+      "baseBranch": "main",
+      "autoLabel": "auto-dev",
+      "allowedCommenters": ["your-github-login"],
+      "testCommands": ["npm test"]
+    }
+  ]
+}
