@@ -32,6 +32,19 @@ const reviewSchema = z.object({
   issueComment: z.string()
 });
 
+function extractJsonPayload(content: string): string {
+  const trimmed = content.trim();
+
+  if (trimmed.startsWith("```")) {
+    const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+    if (fenced?.[1]) {
+      return fenced[1].trim();
+    }
+  }
+
+  return trimmed;
+}
+
 export class PlannerAdapter {
   constructor(private readonly config: AppConfig) {}
 
@@ -60,7 +73,7 @@ export class PlannerAdapter {
 
     const prompt = buildPlanningPrompt(issue);
     const json = await this.invokeModel(prompt, signal);
-    return planSchema.parse(JSON.parse(json));
+    return planSchema.parse(JSON.parse(extractJsonPayload(json)));
   }
 
   async reviewExecution(
@@ -82,7 +95,7 @@ export class PlannerAdapter {
 
     const prompt = buildReviewPrompt(issue, plan, execution);
     const json = await this.invokeModel(prompt, signal);
-    return reviewSchema.parse(JSON.parse(json));
+    return reviewSchema.parse(JSON.parse(extractJsonPayload(json)));
   }
 
   private async invokeModel(prompt: string, signal?: AbortSignal): Promise<string> {
@@ -125,3 +138,5 @@ export class PlannerAdapter {
     return content;
   }
 }
+
+export { extractJsonPayload };

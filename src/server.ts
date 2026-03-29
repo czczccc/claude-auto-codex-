@@ -27,9 +27,13 @@ export function createServer(
     response.json({ ok: true });
   });
 
-  app.get("/runs/:owner/:repo/:issueNumber", (request, response) => {
+  app.get("/runs/:owner/:repo/:issueNumber", async (request, response) => {
     const issueNumber = Number(request.params.issueNumber);
-    const status = orchestrator.getIssueStatus(request.params.owner, request.params.repo, issueNumber);
+    const status = await orchestrator.getIssueStatus(
+      request.params.owner,
+      request.params.repo,
+      issueNumber
+    );
     response.json(status);
   });
 

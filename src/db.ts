@@ -298,11 +298,11 @@ export class StateStore {
         repoName,
         issueNumber,
         status: patch.status ?? existing.status,
-        branchName: patch.branchName ?? existing.branchName,
-        worktreePath: patch.worktreePath ?? existing.worktreePath,
-        prNumber: patch.prNumber ?? existing.prNumber,
-        lastError: patch.lastError ?? existing.lastError,
-        activeRunId: patch.activeRunId ?? existing.activeRunId,
+        branchName: patch.branchName === undefined ? existing.branchName : patch.branchName,
+        worktreePath: patch.worktreePath === undefined ? existing.worktreePath : patch.worktreePath,
+        prNumber: patch.prNumber === undefined ? existing.prNumber : patch.prNumber,
+        lastError: patch.lastError === undefined ? existing.lastError : patch.lastError,
+        activeRunId: patch.activeRunId === undefined ? existing.activeRunId : patch.activeRunId,
         updatedAt: new Date().toISOString()
       });
   }

@@ -124,6 +124,19 @@ export class Orchestrator {
     };
   }
 
+  private async safeCommentOnIssue(
+    repoOwner: string,
+    repoName: string,
+    issueNumber: number,
+    body: string
+  ): Promise<void> {
+    try {
+      await this.github.commentOnIssue(repoOwner, repoName, issueNumber, body);
+    } catch (error) {
+      this.logger.error({ repo: `${repoOwner}/${repoName}`, issue: issueNumber, err: error }, "Issue comment failed");
+    }
+  }
+
   private canControlRuns(context: OrchestratorCommentContext): boolean {
     const allowed = context.repositoryConfig.allowedCommenters;
     return allowed.length === 0 || allowed.includes(context.comment.userLogin);
@@ -191,7 +204,7 @@ export class Orchestrator {
           status: "blocked",
           activeRunId: null
         });
-        await this.github.commentOnIssue(
+        await this.safeCommentOnIssue(
           context.repoOwner,
           context.repoName,
           context.issue.number,
@@ -204,7 +217,7 @@ export class Orchestrator {
       this.store.updateIssueState(context.repoOwner, context.repoName, context.issue.number, {
         status: "planned"
       });
-      await this.github.commentOnIssue(
+      await this.safeCommentOnIssue(
         context.repoOwner,
         context.repoName,
         context.issue.number,
@@ -270,7 +283,7 @@ export class Orchestrator {
           lastError: summary,
           activeRunId: null
         });
-        await this.github.commentOnIssue(
+        await this.safeCommentOnIssue(
           context.repoOwner,
           context.repoName,
           context.issue.number,
@@ -296,7 +309,7 @@ export class Orchestrator {
           lastError: message,
           activeRunId: null
         });
-        await this.github.commentOnIssue(
+        await this.safeCommentOnIssue(
           context.repoOwner,
           context.repoName,
           context.issue.number,
@@ -323,7 +336,7 @@ export class Orchestrator {
         worktreePath,
         activeRunId: null
       });
-      await this.github.commentOnIssue(
+      await this.safeCommentOnIssue(
         context.repoOwner,
         context.repoName,
         context.issue.number,
@@ -345,7 +358,7 @@ export class Orchestrator {
         { repo: `${context.repoOwner}/${context.repoName}`, issue: context.issue.number, runId: run.runId, err: error },
         "Orchestration failed"
       );
-      await this.github.commentOnIssue(
+      await this.safeCommentOnIssue(
         context.repoOwner,
         context.repoName,
         context.issue.number,

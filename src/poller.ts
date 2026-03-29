@@ -135,7 +135,7 @@ export class GitHubPoller {
     let trigger: RunTrigger | null = null;
     if (hasAutoLabel && !observation) {
       trigger = issueRecord ? "issue_labeled" : "issue_opened";
-    } else if (hasAutoLabel && !observation.hasAutoLabel) {
+    } else if (hasAutoLabel && observation && !observation.hasAutoLabel) {
       trigger = "issue_labeled";
     }
 

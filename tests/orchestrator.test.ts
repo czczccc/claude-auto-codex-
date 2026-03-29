@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildCodexPrompt } from "../src/prompts.js";
 import { loadConfig } from "../src/config.js";
 import { StateStore } from "../src/db.js";
+import { extractJsonPayload } from "../src/planner.js";
 import { GitHubPoller } from "../src/poller.js";
 import { RepositoryRegistry } from "../src/repository-config.js";
 import { parseCommentCommand, verifyGitHubSignature } from "../src/utils.js";
@@ -87,6 +88,13 @@ describe("prompt building", () => {
     expect(prompt).toContain("Add health endpoint");
     expect(prompt).toContain("GET /health returns ok");
     expect(prompt).toContain("src/server.ts");
+  });
+});
+
+describe("planner json extraction", () => {
+  it("strips fenced json responses before parsing", () => {
+    const json = extractJsonPayload('```json\n{"ok":true}\n```');
+    expect(JSON.parse(json)).toEqual({ ok: true });
   });
 });
 

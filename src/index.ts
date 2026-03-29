@@ -1,4 +1,5 @@
 import path from "node:path";
+import "dotenv/config";
 import { loadConfig } from "./config.js";
 import { CodexRunner } from "./codex.js";
 import { StateStore } from "./db.js";
